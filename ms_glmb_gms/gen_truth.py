@@ -40,8 +40,8 @@ class truth:
         # target initial states and birth/death times
         nbirths = 2
 
-        tbirth = np.zeros((nbirths), np.int)
-        tdeath = np.zeros((nbirths), np.int)
+        tbirth = np.zeros((nbirths), np.int32)
+        tdeath = np.zeros((nbirths), np.int32)
         xstart = np.zeros((model.x_dim, nbirths))
 
         # create 12 targets by defining each start
