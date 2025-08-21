@@ -10,4 +10,8 @@ IMPLEMENTATION
 USAGE
 =====
 - Install packages: `numpy`, C++ packages in cpp_gibbs (`python setup.py build develop`) `gibbs_multisensor_approx_cheap`, `sample_adaptive_birth`.  
-- Run: `python demo.py`.
+- Install package: [`murty`](https://github.com/JohnPekl/murty) 
+    - Clone project 
+    - Run `python setup.py bdist_wheel` to create *.whl file e.g. `murty-1.0.0-cp311-cp311-win_amd64.whl`
+    - Install *.whl file: `python -m pip install .\dist\murty-1.0.0-cp311-cp311-win_amd64.whl`
+- Run: `python demo.py` or `audio_visual_sensor_fusion.py`
