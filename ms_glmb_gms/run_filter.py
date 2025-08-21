@@ -4,14 +4,14 @@ import cv2
 from scipy.stats.distributions import chi2
 from gen_model import model
 import numpy as np
-from cpputils import gibbs_jointpredupdt
+from lrfscpp import gibbs_jointpredupdt
 from plot_results import plot_truth_meas
 from utils import gate_meas_gms_idx, kalman_update_multiple, unique_faster, \
     gibbswrap_jointpredupdt_custom, intersect_mtlb, setxor_mtlb, kalman_update_single, murty, kalman_predict_multiple, \
     kalman_predict_single, new_dict_by_index, kalman_update_multiple_2, ndsub2ind, kalman_msjointupdate_multiple
 from scipy.special import logsumexp
 from scipy.linalg import cholesky, block_diag
-from gibbs import gibbs_multisensor_approx_cheap, AdaptiveBirth
+from lrfscpp import gibbs_multisensor_approx_cheap, AdaptiveBirth
 
 
 class filter:
