@@ -34,7 +34,7 @@ class truth:
 
 
         if jsonl_filepath:
-            self.run_jsonl_main_loop(jsonl_filepath)
+            self.run_jsonl_main_loop(jsonl_filepath, model)
             return
     
         # target initial states and birth/death times
@@ -97,7 +97,7 @@ class truth:
         self.total_tracks = nbirths
 
     
-    def run_jsonl_main_loop(self, jsonl_filepath):
+    def run_jsonl_main_loop(self, jsonl_filepath, model):
             jsonl = []  # List of JSON dictionaries updated by jsonl reader
             processed_lines = 0
             file_position = 0  # Byte offset position in file
@@ -133,14 +133,14 @@ class truth:
                     
                     # Extract trajectories per object
                     for line in jsonl_batch:
-                        relative_timestamp = float(line["timestamp"])
+                        relative_timestamp_s = float(line["timestamp"])
 
+                        # Get timestamp integer k
+                        k = round(relative_timestamp_s / (1/model.T))  # Use the timestamp as the index
+                        
                         for obj in line["objects"]:
                             object_id = obj["object_id"]
                             position = obj["position"]
-
-                            # Get timestamp integer k
-                            k = int(relative_timestamp*10)  # Use the timestamp as the index # TODO: Use different time resolution than WORKAROUND "*10"
 
                             # Append position to X for the respective timestamp
                             targetstate = [position[0], 0.0, position[1], 0.0, position[2], 0.0]    # [x, vx, y, vy, z, vz] # TODO: Check if velocities should different from 0.0 

@@ -7,12 +7,12 @@ import time
 
 def gen_observation_fn(model, s, X, W):
     # linear observation equation (position components only)
-    if W is 'noise':
+    if W == 'noise':
         # generate actual measurement noise samples W
         std_noise = np.random.randn(model.D[s].shape[1], X.shape[1])    # generate a noise matrix of size (m,n) where each element is a random number drawn from std normal distribution std_noise ~ N(0, 1)
         W = np.dot(model.D[s], std_noise)   # scale the noise matrix by using the sensor observation noise std self.D[s] so that the noise matrix actually matches the sensor noise W ~ N(0,R)
         # model.D[s].shape[1] corresponds to the number of dimensions of the noise for sensor s and the number of targets/states (X.shape[1]).
-    if W is 'noiseless':
+    if W == 'noiseless':
         W = np.zeros(model.D[s].shape[0])
     if len(X) == 0:
         Z = []
@@ -31,7 +31,7 @@ class meas:
                 self.Z[(k, s)] = np.empty((model.z_dim[s, 0], 0))
         
         if jsonl_filepath:
-            self.run_jsonl_main_loop(jsonl_filepath)
+            self.run_jsonl_main_loop(jsonl_filepath, model, sensor_idx=0)
             return
 
         # generate measurements
@@ -52,7 +52,7 @@ class meas:
             #
         #
     
-    def run_jsonl_main_loop(self, jsonl_filepath, sensor_idx=0):
+    def run_jsonl_main_loop(self, jsonl_filepath, model, sensor_idx=0):
             jsonl = []  # List of JSON dictionaries updated by jsonl reader
             processed_lines = 0
             file_position = 0  # Byte offset position in file
@@ -85,14 +85,21 @@ class meas:
                     
                     # Extract trajectories per object
                     for line in jsonl_batch:
-                        relative_timestamp = float(line["timestamp"])
-
+                        relative_timestamp_s = float(line["timestamp"])
+                        
+                        # Get timestamp integer k
+                        k = round(relative_timestamp_s / (1/model.T))  # Use the timestamp as the index
+                        
+                        # Collect all detections from this line
+                        measurements = []
                         for obj in line["objects"]:
                             position = obj["position"]
+                            z = np.array(position).reshape(3, 1)  # single target observations if detected
+                            measurements.append(z)
 
-                            # Get timestamp integer k
-                            k = int(relative_timestamp*10)  # Use the timestamp as the index # TODO: Use different time resolution than WORKAROUND "*10"
-                            self.Z[k, sensor_idx] = np.array(position).reshape(3, 1)  # single target observations if detected
+                        # Stack into (3, n) array
+                        if len(measurements) > 0:
+                            self.Z[(k, sensor_idx)] = np.column_stack(measurements)
 
                     # Update count of processed lines
                     processed_lines += len(new_lines)
