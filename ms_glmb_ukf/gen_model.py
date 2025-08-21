@@ -89,7 +89,7 @@ class model:
 
         # multi-sensor observation parameters
         n_dim = 4  # noise_dim
-        self.N_sensors = 4  # no of sensors
+        self.N_sensors = 2  # no of sensors
         self.z_dim = np.zeros(self.N_sensors, dtype=int)  # dimensions of observation vector for each sensor
         self.H = np.zeros((self.N_sensors, n_dim, self.x_dim))  # observation matrix for each sensor
         self.D = np.zeros((self.N_sensors, n_dim, n_dim))  # observation noise std for each sensor
@@ -105,7 +105,7 @@ class model:
         self.cam_mat = np.zeros((self.N_sensors, 3, 4))
 
         # Sensor/Camera 1
-        self.cam_mat[0] = h5py.File("cam1_cam_mat.mat").get("cam1_cam_mat").value.T
+        self.cam_mat[0] = h5py.File("cam1_cam_mat.mat").get("cam1_cam_mat")[:].T # .value attribute is deprecated in h5py
         self.z_dim[0] = 4
         self.lambda_c[0] = 10
         self.range_c[0] = np.array([[1, 1920], [1, 1024], [1, 1920], [1, 1024]])
@@ -121,7 +121,7 @@ class model:
         self.D[0] = np.diag([5, 5, meas_n_std_dev0, meas_n_std_dev1])  # diag([30;30;30;30])
         self.R[0] = np.dot(self.D[0], self.D[0].T)
 
-        self.cam_mat[1] = h5py.File("cam2_cam_mat.mat").get("cam2_cam_mat").value.T
+        self.cam_mat[1] = h5py.File("cam2_cam_mat.mat").get("cam2_cam_mat")[:].T
         # self.cam1_homo = [cam1_cam_mat[:, 0:2], cam1_cam_mat[:, 3]]
         self.z_dim[1] = 4
         self.lambda_c[1] = 10
@@ -136,35 +136,35 @@ class model:
         self.D[1] = np.diag([5, 5, meas_n_std_dev0, meas_n_std_dev1])  # diag([30;30;30;30])
         self.R[1] = np.dot(self.D[1], self.D[1].T)
 
-        self.cam_mat[2] = h5py.File("cam3_cam_mat.mat").get("cam3_cam_mat").value.T
-        # self.cam2_homo = [self.cam2_cam_mat[:, 0:2], self.cam2_cam_mat[:, 3]]
-        self.z_dim[2] = 4
-        self.lambda_c[2] = 10
-        self.range_c[2] = np.array([[1, 1920], [1, 1024], [1, 1920], [1, 1024]])
-        range_temp = self.range_c[2][:, 1] - self.range_c[2][:, 0] + 1
-        range_temp[2: 4] = np.log(range_temp[2: 4])
-        self.pdf_c[2] = 1 / np.prod(range_temp)
-        self.P_D[2] = .98
-        self.Q_D[2] = 1 - self.P_D[2]
-        self.meas_n_mu[2, :] = [meas_n_mu0, meas_n_mu1]
-        self.meas_n_std_dev[2, :] = [meas_n_std_dev0, meas_n_std_dev1]
-        self.D[2] = np.diag([5, 5, meas_n_std_dev0, meas_n_std_dev1])  # diag([30;30;30;30])
-        self.R[2] = np.dot(self.D[2], self.D[2].T)
+        # self.cam_mat[2] = h5py.File("cam3_cam_mat.mat").get("cam3_cam_mat")[:].T
+        # # self.cam2_homo = [self.cam2_cam_mat[:, 0:2], self.cam2_cam_mat[:, 3]]
+        # self.z_dim[2] = 4
+        # self.lambda_c[2] = 10
+        # self.range_c[2] = np.array([[1, 1920], [1, 1024], [1, 1920], [1, 1024]])
+        # range_temp = self.range_c[2][:, 1] - self.range_c[2][:, 0] + 1
+        # range_temp[2: 4] = np.log(range_temp[2: 4])
+        # self.pdf_c[2] = 1 / np.prod(range_temp)
+        # self.P_D[2] = .98
+        # self.Q_D[2] = 1 - self.P_D[2]
+        # self.meas_n_mu[2, :] = [meas_n_mu0, meas_n_mu1]
+        # self.meas_n_std_dev[2, :] = [meas_n_std_dev0, meas_n_std_dev1]
+        # self.D[2] = np.diag([5, 5, meas_n_std_dev0, meas_n_std_dev1])  # diag([30;30;30;30])
+        # self.R[2] = np.dot(self.D[2], self.D[2].T)
 
-        self.cam_mat[3] = h5py.File("cam4_cam_mat.mat").get("cam4_cam_mat").value.T
-        # self.cam3_homo = [self.cam3_cam_mat[:, 0:2], self.cam3_cam_mat[:, 3]]
-        self.z_dim[3] = 4
-        self.lambda_c[3] = 10
-        self.range_c[3] = np.array([[1, 1920], [1, 1024], [1, 1920], [1, 1024]])
-        range_temp = self.range_c[3][:, 1] - self.range_c[3][:, 0] + 1
-        range_temp[2: 4] = np.log(range_temp[2: 4])
-        self.pdf_c[3] = 1 / np.prod(range_temp)
-        self.P_D[3] = .98
-        self.Q_D[3] = 1 - self.P_D[3]
-        self.meas_n_mu[3, :] = [meas_n_mu0, meas_n_mu1]
-        self.meas_n_std_dev[3, :] = [meas_n_std_dev0, meas_n_std_dev1]
-        self.D[3] = np.diag([5, 5, meas_n_std_dev0, meas_n_std_dev1])  # diag([30;30;30;30])
-        self.R[3] = np.dot(self.D[3], self.D[3].T)
+        # self.cam_mat[3] = h5py.File("cam4_cam_mat.mat").get("cam4_cam_mat")[:].T
+        # # self.cam3_homo = [self.cam3_cam_mat[:, 0:2], self.cam3_cam_mat[:, 3]]
+        # self.z_dim[3] = 4
+        # self.lambda_c[3] = 10
+        # self.range_c[3] = np.array([[1, 1920], [1, 1024], [1, 1920], [1, 1024]])
+        # range_temp = self.range_c[3][:, 1] - self.range_c[3][:, 0] + 1
+        # range_temp[2: 4] = np.log(range_temp[2: 4])
+        # self.pdf_c[3] = 1 / np.prod(range_temp)
+        # self.P_D[3] = .98
+        # self.Q_D[3] = 1 - self.P_D[3]
+        # self.meas_n_mu[3, :] = [meas_n_mu0, meas_n_mu1]
+        # self.meas_n_std_dev[3, :] = [meas_n_std_dev0, meas_n_std_dev1]
+        # self.D[3] = np.diag([5, 5, meas_n_std_dev0, meas_n_std_dev1])  # diag([30;30;30;30])
+        # self.R[3] = np.dot(self.D[3], self.D[3].T)
 
 
 if __name__ == '__main__':

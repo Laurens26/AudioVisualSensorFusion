@@ -1,7 +1,7 @@
 from scipy.stats.distributions import chi2
 import numpy as np
 from scipy.special import logsumexp
-from gibbs import gibbs_multisensor_approx_cheap, MSGLMB
+from lrfscpp import gibbs_multisensor_approx_cheap, MSGLMB
 from target import Target
 
 
@@ -359,7 +359,10 @@ class GLMB:  # delta GLMB
                   ' #trax updt=', "{:10.4f}".format(len(self.glmb_update_tt)))
 
     def run(self, model, filter, meas):
+        import time
+        avg_start_time = time.time()
         for k in range(0, meas.K):
+            start_time = time.time()
             # joint prediction and update
             self.msjointpredictupdate(model, filter, meas, k)
             H_posterior = len(self.glmb_update_w)
@@ -381,5 +384,11 @@ class GLMB:  # delta GLMB
             #     measZ.append(meas.Z[k, ik])
             # est = self.MSGLMB.run_msglmb_ukf(measZ, k)
             # self.est.X[k], self.est.N[k], self.est.L[k] = est
+            end_time = time.time()
+            print(f"AVG Runtime: {end_time - start_time:.6f} seconds")
+        avg_end_time = time.time()
+        print(f"AVG Runtime: {avg_end_time - avg_start_time:.6f} seconds")
         return self.est
+        
+
     # END
