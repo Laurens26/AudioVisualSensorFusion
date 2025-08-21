@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 def plot_results(model, truth, meas, est):
     X_track, k_birth, k_death = extract_tracks(truth.X, truth.track_list, truth.total_tracks)
@@ -16,27 +17,105 @@ def plot_results(model, truth, meas, est):
     Y_track, l_birth, l_death = extract_tracks(est.X, est.track_list, est.total_tracks)
 
     # plot ground truths
-    limit = np.array([model.range_c[0, 0, 0], model.range_c[0, 0, 1], model.range_c[1, 0, 0], model.range_c[1, 0, 1],
-                      model.range_c[2, 0, 0], model.range_c[2, 0, 1]])
-    plt.figure(figsize=(9, 3))
+    # limit = np.array([model.range_c[0, 0, 0], model.range_c[0, 0, 1], model.range_c[1, 0, 0], model.range_c[1, 0, 1],
+    #                   model.range_c[2, 0, 0], model.range_c[2, 0, 1]])
+    
+    # Generate a colormap for different tracks
+    colors = cm.get_cmap('tab10', truth.total_tracks)
+    plt.figure(figsize=(9, 6))
     ax = plt.axes(projection='3d')
-    for i in range(0, truth.total_tracks):
+
+    # Lists to store legend elements
+    legend_elements = []
+
+    for i in range(truth.total_tracks):
         Pt = X_track[:, np.arange(k_birth[i], k_death[i], 1), i]
         Pt = Pt[[0, 2, 4], :]
-        plt.plot(Pt[0, :], Pt[1, :], Pt[2, :], 'k-')
-        plt.plot(Pt[0, 0], Pt[1, 0], Pt[2, 0], 'ko', 6)
-        plt.plot(Pt[0, (k_death[i] - k_birth[i] - 1)], Pt[1, (k_death[i] - k_birth[i] - 1)],
-                  Pt[2, (k_death[i] - k_birth[i] - 1)], 'k^', 6)
-    ax.set_xlim3d(limit[0], limit[1])
-    ax.set_ylim3d(limit[0], limit[1])
-    ax.set_zlim3d(limit[0], limit[1])
-    plt.title('Ground Truths')
+        
+        # Plot track
+        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color=colors(i), label=f'Track ID {i+1}', alpha=0.5)
+        
+        # Plot birth marker
+        ax.scatter(Pt[0, 0], Pt[1, 0], Pt[2, 0], color=colors(i), marker='o', s=60, alpha=0.5)
+        
+        # Plot death marker
+        ax.scatter(Pt[0, -1], Pt[1, -1], Pt[2, -1], color=colors(i), marker='^', s=60, alpha=0.5)
+
+    # Add birth and death markers once to the legend
+    legend_elements.append(plt.Line2D([0], [0], marker='o', color='black', markersize=8, linestyle='None', label='True Birth', alpha=0.5))
+    legend_elements.append(plt.Line2D([0], [0], marker='^', color='black', markersize=8, linestyle='None', label='True Death', alpha=0.5))
+
+    # Add track IDs to the legend
+    for i in range(truth.total_tracks):
+        legend_elements.append(plt.Line2D([0], [0], color=colors(i), lw=2, label=f'True Track ID {i+1}', alpha=0.5))
+
+    # Plot estimated tracks and markers in 3D
+    for i in range(est.total_tracks):
+        Pt = Y_track[:, np.arange(l_birth[i], l_death[i], 1), i]
+        Pt = Pt[[0, 2, 4], :]
+        
+        # Plot track
+        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color=colors(i), label=f'Track ID {i+1}')
+        
+        # Find the first valid (non-NaN) 3D point (birth)
+        for j in range(Pt.shape[1]):
+            if not np.any(np.isnan(Pt[:, j])):
+                birth_point = Pt[:, j]
+                break
+
+        # Find the last valid (non-NaN) 3D point (death)
+        for j in range(Pt.shape[1] - 1, -1, -1):
+            if not np.any(np.isnan(Pt[:, j])):
+                death_point = Pt[:, j]
+                break
+
+        # Plot the birth marker at the first valid 3D point
+        print(f"birth:{birth_point[0], birth_point[1], birth_point[2]}")
+        ax.scatter(birth_point[0], birth_point[1], birth_point[2], color=colors(i), marker='o', s=60)
+        
+        # Plot the death marker at the last valid 3D point
+        print(f"death:{death_point[0], death_point[1], death_point[2]}")
+        ax.scatter(death_point[0], death_point[1], death_point[2], color=colors(i), marker='^', s=60)
+
+    # Add estimated track IDs to the legend
+    for i in range(est.total_tracks):
+        legend_elements.append(plt.Line2D([0], [0], color=colors(i), lw=2, label=f'Estimated Track ID {i+1}'))
+
+    # Add estimated birth and death markers once to the legend
+    legend_elements.append(plt.Line2D([0], [0], marker='o', color='black', markersize=8, linestyle='None', label='Estimated Birth'))
+    legend_elements.append(plt.Line2D([0], [0], marker='^', color='black', markersize=8, linestyle='None', label='Estimated Death'))
+
+    # Set axis labels
+    ax.set_xlabel('x [m]')
+    ax.set_ylabel('y [m]')
+    ax.set_zlabel('z [m]')
+
+    # Set axis limits
+    # ax.set_xlim3d(limit[0], limit[1])
+    # ax.set_ylim3d(limit[2], limit[3])
+    # ax.set_zlim3d(limit[4], limit[5])
+    ax.set_xlim3d(0, 5)
+    ax.set_ylim3d(0, 5)
+    ax.set_zlim3d(0, 3)
+
+    plt.title('MS-GLMB Tracking')
+    ax.legend(handles=legend_elements, loc='upper left', fontsize='small')
     # plt.show()
+
+    # Laurens: Plot measurements in 3D
+    for s in range(model.N_sensors):
+        for k in range(0, meas.K):
+            if meas.Z[(k, s)].size == 0:
+                continue
+            # Plot measurements as points (scatter plot)
+            ax.scatter(meas.Z[(k, s)][0, :], meas.Z[(k, s)][1, :], meas.Z[(k, s)][2, :], marker='x', s=50,
+                    color=0.7 * np.ones((1, 3)), label=f'Measurements for Track {k}')
 
     for s in range(model.N_sensors):
         # plot tracks and measurements in x/y
         # plot x measurement
         fig, (axs1, axs2, axs3) = plt.subplots(3)
+        
         for k in range(0, meas.K):
             if meas.Z[(k, s)].size == 0:
                 continue
@@ -58,6 +137,8 @@ def plot_results(model, truth, meas, est):
                                     color=0 * np.ones((1, 3)), label='True tracks')
         # plt.show()
         # plot x, y, z estimate
+        # Initialize empty lists to hold the plot objects
+        # plt_x_est, plt_y_est, plt_z_est = [], [], []
         for k in range(meas.K):
             if len(est.X[k]) == 0:
                 continue
@@ -65,16 +146,17 @@ def plot_results(model, truth, meas, est):
             L = est.L[k]
             for eidx in range(P.shape[1]):
                 color = assigncolor(L[:, eidx], colorarray)[0]
-                plt_x_est = axs1.plot(k, P[0, eidx], marker='.', color=colorarray.rgb[:, color], label='Estimates')
-                plt_y_est = axs2.plot(k, P[1, eidx], marker='.', color=colorarray.rgb[:, color], label='Estimates')
-                plt_z_est = axs3.plot(k, P[2, eidx], marker='.', color=colorarray.rgb[:, color], label='Estimates')
-        axs1.legend(handles=[plt_x_meas, plt_x_truth[0], plt_x_est[0]])
+                plt_x_est = axs1.plot(k, P[0, eidx], marker='.', color=colors(eidx), label='Estimates')
+                plt_y_est = axs2.plot(k, P[1, eidx], marker='.', color=colors(eidx), label='Estimates')
+                plt_z_est = axs3.plot(k, P[2, eidx], marker='.', color=colors(eidx), label='Estimates')
+        axs1.legend(handles=[plt_x_meas, plt_x_truth[0], plt_x_est[0]], loc='upper left')
         axs1.set_xlabel('Time')
         axs1.set_ylabel('x-coordinate (m)')
         axs2.set_xlabel('Time');
         axs2.set_ylabel('y-coordinate (m)')
         axs3.set_xlabel('Time');
         axs3.set_ylabel('z-coordinate (m)')
+        fig.suptitle("Sensor Measurements, Ground Truth, and Estimates Over Time")
         plt.show()
 
 

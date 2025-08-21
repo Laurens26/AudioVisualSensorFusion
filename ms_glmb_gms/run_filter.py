@@ -127,11 +127,13 @@ class GLMB:  # delta GLMB
         self.tt_birth = []
         self.AdaptiveBirth = AdaptiveBirth()
         mu0 = np.zeros(6)
-        P0 = np.power(np.diagflat([2000, 50, 2000, 50, 2000, 50]), 2)
+        P0 = np.power(np.diagflat([0.25, 1, 0.25, 1, 0.25, 1]), 2) # P0 is a covariance matrix for the initial state of the tracked object
+                                                                      # [x, vx, y, vy, z, vz] where x, y, z is the Position variance for each axis
+                                                                      #                       where vx,vy,vz is the Velocity variance for each axis
         # num_sensors, F, Q, PD, lambda_c, pdf_c, R,  mu0, P0, tau_rU, H_gibbs, num_miss, r_bmax
         self.AdaptiveBirth.init_parameters(model.N_sensors, model.F, model.Q, model.P_D[0], model.lambda_c[0],
                                            model.pdf_c[0], model.R[0], mu0, P0,
-                                           0.9, 1000, 0, model.r_birth[0])
+                                           0.9, 1000, 0, model.r_birth[0])     # H_gibbs is number of Gibbs sampling iterations
         self.est = Estimate()
 
     def msjointpredictupdate(self, model, filter, meas, k):
