@@ -1,15 +1,12 @@
 from gen_truth import truth
 from gen_model import model
 import numpy as np
-from utils import read_jsonl_measurements
+import json
+import time
 
 
 def gen_observation_fn(model, s, X, W):
-    """
-    Linear observation equation (position components only).
-    Generates measurement noise if required and computes:
-        Z = H*X + W
-    """
+    # linear observation equation (position components only)
     if W == 'noise':
         # generate actual measurement noise samples W
         std_noise = np.random.randn(model.D[s].shape[1], X.shape[1])    # generate a noise matrix of size (m,n) where each element is a random number drawn from std normal distribution std_noise ~ N(0, 1)
@@ -25,76 +22,115 @@ def gen_observation_fn(model, s, X, W):
 
 
 class meas:
-    """
-    Represents a set of measurements from one or more sensors.
-    Can be constructed either from ground-truth simulation
-    or from reading JSONL measurement logs.
-    """
+    def __init__(self, model, truth, generate_measurements=False):
+        # variables
+        self.K = truth.K
+        self.Z = {}
+        for k in range(0, truth.K):
+            for s in range(model.N_sensors):
+                self.Z[(k, s)] = np.empty((model.z_dim[s, 0], 0))
+
+        if generate_measurements is True:
+            # generate measurements
+            for k in range(0, truth.K):
+                for s in range(model.N_sensors):
+                    if truth.N[k] > 0:  #  Checks if there are any targets present at time step k
+                        idx = np.nonzero(np.random.rand(truth.N[k], 1) <= model.P_D[s])[0]  # detected target indices. Simulates whether target is detected by using probability P_D[s] for sensor s.
+                        self.Z[k, s] = gen_observation_fn(model, s, truth.X[k][:, idx], 'noise')  # single target observations if detected
+
+                        # LAURENS: Clutter points can be used to model unwanted data points detected by sensors caused by Environmental Interference or Multipath Effects: 
+                        # Audio Detektor: Non-Target Sounds, Refelctions and Reverberations, Background Noise
+                        # Video Detektor: objects that are not the target of localization e.g. dog, cat
+                        N_c = np.random.poisson(model.lambda_c[s, 0])  # number of clutter points
+                        C = np.tile(model.range_c[s][:, 0].reshape(-1, 1), (1, N_c)) + \
+                            np.diagflat(np.dot(model.range_c[s], np.array([[-1], [1]]))) @ \
+                            np.random.rand(model.z_dim[s, 0], N_c)  # clutter generation
+                        self.Z[k, s] = np.column_stack((self.Z[k, s], C))  # measurement is union of detections and clutter
+                #
+            #
     
-    def __init__(self, K, Z):
-        self.K = K  # number of time steps
-        self.Z = Z  # dictionary: (k, s) -> np.array(z_dim, n_meas)
+    def run_jsonl_main_loop(self, jsonl_filepath, dim=3, sensor_idx=0):
+            jsonl = []  # List of JSON dictionaries updated by jsonl reader
+            processed_lines = 0
+            file_position = 0  # Byte offset position in file
 
-    @classmethod
-    def from_truth(cls, model, truth):
-        """
-        Generate synthetic measurements from truth and model parameters.
-        """
-        Z = {}
-        for k in range(truth.K):
-            for s in range(model.N_sensors):
-                Z[(k, s)] = np.empty((model.z_dim[s, 0], 0))
+            while True:
+                try:
+                    with open(jsonl_filepath, 'r') as f:
+                        # Set the reading position
+                        f.seek(file_position) # Seek to last read position
+                        new_lines = f.readlines()
+                        file_position = f.tell() # Update the current file position
 
-                if truth.N[k] > 0:
-                    # Simulate detection probability
-                    idx = np.nonzero(np.random.rand(truth.N[k], 1) <= model.P_D[s])[0] # detected target indices. Simulates whether target is detected by using probability P_D[s] for sensor s.
-                    if len(idx) > 0:
-                        Z[(k, s)] = gen_observation_fn(model, s, truth.X[k][:, idx], 'noise')
+                    if not new_lines:
+                        time.sleep(1.0) # Avoid busy waiting
+                        continue
 
-                # --- Example clutter generation (disabled for now) ---
-                # LAURENS: Clutter points can be used to model unwanted data points detected by sensors caused by Environmental Interference or Multipath Effects: 
-                # Audio Detektor: Non-Target Sounds, Refelctions and Reverberations, Background Noise
-                # Video Detektor: objects that are not the target of localization e.g. dog, cat
-                # N_c = np.random.poisson(model.lambda_c[s, 0])
-                # C = np.tile(model.range_c[s][:, 0].reshape(-1, 1), (1, N_c)) + \          # number of clutter points
-                #     np.diagflat(np.dot(model.range_c[s], np.array([[-1], [1]]))) @ \
-                #     np.random.rand(model.z_dim[s, 0], N_c)                                # clutter generation
-                # Z[(k, s)] = np.column_stack((Z[(k, s)], C))                               # measurement is union of detections and clutter
+                    # Parse and enrich new JSON lines
+                    for line in new_lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                            jsonl.append(data)
+                        except json.JSONDecodeError:
+                            print("Malformed JSON:", line)
 
-        return cls(truth.K, Z)
+                    # Create batch for further processing
+                    jsonl_batch = jsonl[-len(new_lines):]
+                    
+                    # Extract trajectories per object
+                    for line in jsonl_batch:
+                        relative_timestamp = float(line["timestamp"])
+
+                        for obj in line["objects"]:
+
+                            if dim == 2:
+                                position = obj["position"]
+                                position[2] = 0
+                                # position = np.array([obj["position"][0], obj["position"][1]])
+                            else:
+                                position = obj["position"]
+
+                            # Check if in measurement area
+                            AREA_X_MIN = 0.0
+                            AREA_X_MAX = 4.66
+                            AREA_Y_MIN = 0.0
+                            AREA_Y_MAX = 4.66
+                            AREA_Z_MIN = 0.0
+                            AREA_Z_MAX = 3.0
 
 
-    @classmethod
-    def from_jsonl(cls, model, truth, filepaths, sensor_idxs=None):
-        """
-        Build measurements from one or more JSONL files.
-        Each file corresponds to one sensor index.
-        Ensures that Z contains entries for all k,s combinations,
-        with the same number of time steps as truth.K.
-        """
-        if isinstance(filepaths, str):
-            filepaths = [filepaths]
-        if sensor_idxs is None:
-            sensor_idxs = list(range(len(filepaths)))
+                            if (AREA_X_MIN <= position[0] <= AREA_X_MAX and
+                                AREA_Y_MIN <= position[1] <= AREA_Y_MAX 
+                                # and AREA_Z_MIN <= position[2] <= AREA_Z_MAX
+                                ):   
+                                # Get timestamp integer k
+                                k = int(relative_timestamp*10)  # Use the timestamp as the index # TODO: Use different time resolution than WORKAROUND "*10"
+                                # Stack new observation to existing ones to allow for multiple measurements for the same timestamp and sensor
+                                if dim == 2:
+                                    # entry = np.hstack((self.Z[k, sensor_idx], np.array(position).reshape(2, 1)))
+                                    entry = np.hstack((self.Z[k, sensor_idx], np.array(position).reshape(3, 1)))
+                                else:
+                                    entry = np.hstack((self.Z[k, sensor_idx], np.array(position).reshape(3, 1)))
+                                self.Z[k, sensor_idx] = entry
+                                # self.Z[k, sensor_idx] = np.hstack((self.Z[k, sensor_idx], np.array([position[0], position[1], 0]).reshape(3, 1))) # 2D TESTING ONLY
+                                
+                    # Update count of processed lines
+                    processed_lines += len(new_lines)
+                    print("---")
 
-        # Read measurements from all files
-        Z_raw = {}
-        for filepath, s in zip(filepaths, sensor_idxs):
-            Z_part = read_jsonl_measurements(filepath, model, s)
-            Z_raw.update(Z_part)
+                    # TODO: Only for now, return after first JSONL reading iteration
+                    return
 
-        # Pre-allocate empty arrays for all k,s (same as truth.K)
-        Z = {}
-        for k in range(truth.K):
-            for s in range(model.N_sensors):
-                Z[(k, s)] = np.empty((model.z_dim[s, 0], 0))
+                except FileNotFoundError:
+                    print("File not found, retrying...")
+                    time.sleep(1.0)
 
-        # Fill available entries with JSONL data
-        for (k, s), val in Z_raw.items():
-            if k < truth.K:  # safeguard: ignore measurements beyond truth horizon
-                Z[(k, s)] = val
-
-        return cls(truth.K, Z)
+                except Exception as e:
+                    print("Unexpected error:", e)
+                    time.sleep(1.0)
 
 
 if __name__ == '__main__':

@@ -25,7 +25,15 @@ class filter:
         self.elim_threshold = 1e-5  # pruning threshold for Gaussians in each track - not implemented yet
         self.merge_threshold = 4  # merging threshold for Gaussians in each track - not implemented yet
 
-        self.P_G = 0.9999999  # gate size in percentage
+        # Gating Concept: How far can a track jump for associations expressed as probability ("Mahalanobis" gating)
+        # Smaller PG / smaller gamma → tighter gate → fewer candidate measurements → less risk of wrong associations / teleports, but more risk of rejecting a correct (noisy) measurement.
+        # Larger PG / larger gamma → more permissive → less risk of rejecting true measurement under heavy noise, but greater risk of wrong associations.
+        # PG 0.95 	    -> gamma 7.81	-> relatively strict
+        # PG 0.995	    -> gamma 12.84 	-> a bit looser
+        # PG 0.99 	    -> gamma 11.34  -> common choice
+        # PG 0.9999999 	-> gamma 35.41 	-> very, very loose 
+        # self.P_G = 0.9999999  # gate size in percentage
+        self.P_G = 0.99  # gate size in percentage LAURENS
         self.gamma = chi2.ppf(self.P_G, model.z_dim)  # inv chi^2 dn gamma value
         self.gate_flag = 1  # gating on or off 1/0
 
@@ -48,6 +56,7 @@ class Target:
     # (5) ah: association history
     def __init__(self, m, P, prob_birth, label, model):
         self.m = m
+        self.history_m = [self.m.copy()]  # keep history of means
         self.P = P
         self.w = 1  # weights of Gaussians for birth track
         self.r = prob_birth
@@ -127,7 +136,7 @@ class GLMB:  # delta GLMB
         self.tt_birth = []
         self.AdaptiveBirth = AdaptiveBirth()
         mu0 = np.zeros(6)
-        P0 = np.power(np.diagflat([0.25, 1, 0.25, 1, 0.25, 1]), 2) # P0 is a covariance matrix for the initial state of the tracked object
+        P0 = np.power(np.diagflat([1, 0.5, 1, 0.5, 0.01, 0.01]), 2) # P0 is a covariance matrix for the initial state of the tracked object
                                                                       # [x, vx, y, vy, z, vz] where x, y, z is the Position variance for each axis
                                                                       #                       where vx,vy,vz is the Velocity variance for each axis
         # num_sensors, F, Q, PD, lambda_c, pdf_c, R,  mu0, P0, tau_rU, H_gibbs, num_miss, r_bmax
@@ -300,6 +309,12 @@ class GLMB:  # delta GLMB
 
             # kalman update for this track and all joint measurements
             qz_temp, tt = glmb_predict_tt[preidx].msjointupdate(meas.Z, k, meascomb, model)
+
+            # LAURENS
+            # alpha = 0.25  # smoothing factor, 0 < alpha < 1
+            # tt.m = alpha * tt.m + (1 - alpha) * tt.history_m[-1]
+            # tt.history_m.append(tt.m.copy())
+
             tt_update_msqz[tabidx] = qz_temp
 
             tt_update.append(tt)

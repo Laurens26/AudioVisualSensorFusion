@@ -2,8 +2,6 @@ import numpy as np
 from scipy.linalg import cholesky
 from murty import Murty
 from scipy.linalg import block_diag
-import json
-from pathlib import Path
 
 
 def kalman_predict_multiple(model, m, P):
@@ -98,6 +96,12 @@ def kalman_update_multiple_2(z, model, s, m, P):
 def kalman_update_single(z, H, R, m, P):
     mu = H @ m;
     S = R + np.linalg.multi_dot([H, P, H.T]);
+
+    # Workaround LAURENS
+    # Add a small regularization term to ensure S is positive definite
+    epsilon = 1e-10
+    S += np.eye(S.shape[0]) * epsilon # += to add some small values so S matrix is positive definite
+
     Vs = np.linalg.cholesky(S);
     det_S = np.prod(np.diag(Vs)) ** 2;
     inv_sqrt_S = np.linalg.inv(Vs);
@@ -209,47 +213,6 @@ def setxor_mtlb(a, b):
     b1, ib = np.unique(b, return_index=True)
     c = np.setxor1d(a1, b1)
     return c, ia[np.isin(a1, c)], ib[np.isin(b1, c)]
-
-
-def read_jsonl_measurements(filepath, model, sensor_idx):
-    """
-    Reads a single JSONL file containing measurements for one sensor.
-    Returns a dictionary {(k, sensor_idx): np.array(...)}.
-    """
-    Z = {}
-    filepath = Path(filepath)
-
-    if not filepath.exists():
-        raise FileNotFoundError(f"JSONL file not found: {filepath}")
-
-    with open(filepath, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                data = json.loads(line)
-            except json.JSONDecodeError:
-                print("Malformed JSON:", line)
-                continue
-
-            # Convert timestamp to time index k
-            relative_timestamp_s = float(data["timestamp"])
-            k = round(relative_timestamp_s / (1 / model.T))
-
-            # Collect detections
-            measurements = []
-            for obj in data["objects"]:
-                position = obj["position"]
-                z = np.array(position).reshape(model.z_dim[sensor_idx, 0], 1)
-                measurements.append(z)
-
-            if len(measurements) > 0:
-                if (k, sensor_idx) not in Z:
-                    Z[(k, sensor_idx)] = np.column_stack(measurements)
-                else:
-                    Z[(k, sensor_idx)] = np.column_stack((Z[(k, sensor_idx)], np.column_stack(measurements))) # Append new measurements to existing measurements at k
-    return Z
 
 
 if __name__ == '__main__':

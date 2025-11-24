@@ -24,6 +24,7 @@ def plot_results(model, truth, meas, est):
     colors = cm.get_cmap('tab10', truth.total_tracks)
     plt.figure(figsize=(9, 6))
     ax = plt.axes(projection='3d')
+    ax.view_init(elev=90, azim=-90) # top down viewing angle
 
     # Lists to store legend elements
     legend_elements = []
@@ -53,7 +54,10 @@ def plot_results(model, truth, meas, est):
     for i in range(est.total_tracks):
         Pt = Y_track[:, np.arange(l_birth[i], l_death[i], 1), i]
         Pt = Pt[[0, 2, 4], :]
-        
+
+        # Print trajectory points
+        # print(Pt.T)  # Transpose to one row per timestep: [x, y, z]
+
         # Plot track
         ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color=colors(i), label=f'Track ID {i+1}')
         
@@ -95,69 +99,87 @@ def plot_results(model, truth, meas, est):
     # ax.set_ylim3d(limit[2], limit[3])
     # ax.set_zlim3d(limit[4], limit[5])
     ax.set_xlim3d(0, 5)
+    # ax.set_xlim3d(-1, 11)
     ax.set_ylim3d(0, 5)
     ax.set_zlim3d(0, 3)
 
     plt.title('MS-GLMB Tracking')
-    ax.legend(handles=legend_elements, loc='upper left', fontsize='small')
-    # plt.show()
+    ax.legend(handles=legend_elements, loc='upper left', fontsize='small', bbox_to_anchor=(1.05, 1)) # bbox_to_anchor to move legend relative to loc
 
     # Laurens: Plot measurements in 3D
     for s in range(model.N_sensors):
         for k in range(0, meas.K):
             if meas.Z[(k, s)].size == 0:
                 continue
-            # Plot measurements as points (scatter plot)
-            ax.scatter(meas.Z[(k, s)][0, :], meas.Z[(k, s)][1, :], meas.Z[(k, s)][2, :], marker='x', s=50,
-                    color=0.7 * np.ones((1, 3)), label=f'Measurements for Track {k}')
+            # # Plot measurements as points (scatter plot)
+            # ax.scatter(meas.Z[(k, s)][0, :], meas.Z[(k, s)][1, :], meas.Z[(k, s)][2, :], marker='x', s=50,
+            #         color=0.7 * np.ones((1, 3)), label=f'Measurements for Track {k}')
+                    # Normalize the timestamp k (between 0 and K-1) to the range [0, 1]
+            norm_k = k / (meas.K - 1)  # Normalized value between 0 (dark grey) and 1 (light grey)
+            
+            # Use a colormap (e.g., gray) to map the normalized timestamp to a color
+            color = cm.viridis(norm_k)  # cm.gray generates a grey color based on the normalized value
 
-    for s in range(model.N_sensors):
-        # plot tracks and measurements in x/y
-        # plot x measurement
-        fig, (axs1, axs2, axs3) = plt.subplots(3)
+            # Plot measurements as points (scatter plot)
+            ax.scatter(
+                meas.Z[(k, s)][0, :], 
+                meas.Z[(k, s)][1, :], 
+                meas.Z[(k, s)][2, :], 
+                marker='x', 
+                s=50, 
+                color=color, 
+                label=f'Measurements for Track {k}' if k == 0 else ""  # Avoid repeated labels
+            )
+
+    # # Plot each axis for each sensor separately
+    # for s in range(model.N_sensors):
+    #     # plot tracks and measurements in x/y
+    #     # plot x measurement
+    #     fig, (axs1, axs2, axs3) = plt.subplots(3)
         
-        for k in range(0, meas.K):
-            if meas.Z[(k, s)].size == 0:
-                continue
-            plt_x_meas = axs1.scatter(k * np.ones((meas.Z[(k, s)].shape[1], 1)), meas.Z[(k, s)][0, :], marker='x', s=50,
-                                      color=0.7 * np.ones((1, 3)), label='Measurements')
-            plt_y_meas = axs2.scatter(k * np.ones((meas.Z[(k, s)].shape[1], 1)), meas.Z[(k, s)][1, :], marker='x', s=50,
-                                      color=0.7 * np.ones((1, 3)), label='Measurements')
-            plt_z_meas = axs3.scatter(k * np.ones((meas.Z[(k, s)].shape[1], 1)), meas.Z[(k, s)][2, :], marker='x', s=50,
-                                      color=0.7 * np.ones((1, 3)), label='Measurements')
-        # plot x, y, z track
-        for i in range(0, truth.total_tracks):
-            P = X_track[:, np.arange(k_birth[i], k_death[i], 1), i]
-            P = P[[0, 2, 4], :]
-            plt_x_truth = axs1.plot(np.arange(k_birth[i], k_death[i], 1), P[0, :], linestyle='-', linewidth=1,
-                                    color=0 * np.ones((1, 3)), label='True tracks')
-            plt_y_truth = axs2.plot(np.arange(k_birth[i], k_death[i], 1), P[1, :], linestyle='-', linewidth=1,
-                                    color=0 * np.ones((1, 3)), label='True tracks')
-            plt_z_truth = axs3.plot(np.arange(k_birth[i], k_death[i], 1), P[2, :], linestyle='-', linewidth=1,
-                                    color=0 * np.ones((1, 3)), label='True tracks')
-        # plt.show()
-        # plot x, y, z estimate
-        # Initialize empty lists to hold the plot objects
-        # plt_x_est, plt_y_est, plt_z_est = [], [], []
-        for k in range(meas.K):
-            if len(est.X[k]) == 0:
-                continue
-            P = est.X[k][[0, 2, 4]]
-            L = est.L[k]
-            for eidx in range(P.shape[1]):
-                color = assigncolor(L[:, eidx], colorarray)[0]
-                plt_x_est = axs1.plot(k, P[0, eidx], marker='.', color=colors(eidx), label='Estimates')
-                plt_y_est = axs2.plot(k, P[1, eidx], marker='.', color=colors(eidx), label='Estimates')
-                plt_z_est = axs3.plot(k, P[2, eidx], marker='.', color=colors(eidx), label='Estimates')
-        axs1.legend(handles=[plt_x_meas, plt_x_truth[0], plt_x_est[0]], loc='upper left')
-        axs1.set_xlabel('Time')
-        axs1.set_ylabel('x-coordinate (m)')
-        axs2.set_xlabel('Time');
-        axs2.set_ylabel('y-coordinate (m)')
-        axs3.set_xlabel('Time');
-        axs3.set_ylabel('z-coordinate (m)')
-        fig.suptitle("Sensor Measurements, Ground Truth, and Estimates Over Time")
-        plt.show()
+    #     for k in range(0, meas.K):
+    #         if meas.Z[(k, s)].size == 0:
+    #             continue
+    #         plt_x_meas = axs1.scatter(k * np.ones((meas.Z[(k, s)].shape[1], 1)), meas.Z[(k, s)][0, :], marker='x', s=50,
+    #                                   color=0.7 * np.ones((1, 3)), label='Measurements')
+    #         plt_y_meas = axs2.scatter(k * np.ones((meas.Z[(k, s)].shape[1], 1)), meas.Z[(k, s)][1, :], marker='x', s=50,
+    #                                   color=0.7 * np.ones((1, 3)), label='Measurements')
+    #         plt_z_meas = axs3.scatter(k * np.ones((meas.Z[(k, s)].shape[1], 1)), meas.Z[(k, s)][2, :], marker='x', s=50,
+    #                                   color=0.7 * np.ones((1, 3)), label='Measurements')
+    #     # plot x, y, z track
+    #     for i in range(0, truth.total_tracks):
+    #         P = X_track[:, np.arange(k_birth[i], k_death[i], 1), i]
+    #         P = P[[0, 2, 4], :]
+    #         plt_x_truth = axs1.plot(np.arange(k_birth[i], k_death[i], 1), P[0, :], linestyle='-', linewidth=1,
+    #                                 color=0 * np.ones((1, 3)), label='True tracks')
+    #         plt_y_truth = axs2.plot(np.arange(k_birth[i], k_death[i], 1), P[1, :], linestyle='-', linewidth=1,
+    #                                 color=0 * np.ones((1, 3)), label='True tracks')
+    #         plt_z_truth = axs3.plot(np.arange(k_birth[i], k_death[i], 1), P[2, :], linestyle='-', linewidth=1,
+    #                                 color=0 * np.ones((1, 3)), label='True tracks')
+    #     # plt.show()
+        
+    #     # plot x, y, z estimate
+    #     # Initialize empty lists to hold the plot objects
+    #     # plt_x_est, plt_y_est, plt_z_est = [], [], []
+    #     for k in range(meas.K):
+    #         if len(est.X[k]) == 0:
+    #             continue
+    #         P = est.X[k][[0, 2, 4]]
+    #         L = est.L[k]
+    #         for eidx in range(P.shape[1]):
+    #             color = assigncolor(L[:, eidx], colorarray)[0]
+    #             plt_x_est = axs1.plot(k, P[0, eidx], marker='.', color=colors(eidx), label='Estimates')
+    #             plt_y_est = axs2.plot(k, P[1, eidx], marker='.', color=colors(eidx), label='Estimates')
+    #             plt_z_est = axs3.plot(k, P[2, eidx], marker='.', color=colors(eidx), label='Estimates')
+    #     axs1.legend(handles=[plt_x_meas, plt_x_truth[0], plt_x_est[0]], loc='upper left')
+    #     axs1.set_xlabel('Time')
+    #     axs1.set_ylabel('x-coordinate (m)')
+    #     axs2.set_xlabel('Time');
+    #     axs2.set_ylabel('y-coordinate (m)')
+    #     axs3.set_xlabel('Time');
+    #     axs3.set_ylabel('z-coordinate (m)')
+    #     fig.suptitle("Sensor Measurements, Ground Truth, and Estimates Over Time")
+    plt.show()
 
 
 def plot_truth_meas(model, truth, meas):
@@ -283,3 +305,68 @@ def get_comps(X, c):
     else:
         Xc = X[c, :]
     return Xc
+
+def write_results_jsonl(model, est, filename='tracking.jsonl'):
+    """
+    Write tracking results from `est` into a JSONL file (one JSON object per time step).
+    Each line has the form:
+    {"timestamp":"<seconds with 16 fractional digits>","objects":[{"object_id":0,"position":[x,y,z]}, ...]}
+
+    - timestamp is formatted as a string with 16 fractional digits (e.g. "0.1000000000000000").
+    - position is taken from state vector indices [0,2,4] (i.e. x,y,z).
+    - model.T is used to convert discrete time k -> seconds: t = k * model.T
+    """
+    # Try to infer total_tracks if not present
+    if hasattr(est, 'total_tracks') and getattr(est, 'total_tracks', None) is not None:
+        total_tracks = int(est.total_tracks)
+    else:
+        total_tracks = -1
+        if hasattr(est, 'track_list'):
+            for k in est.track_list:
+                if est.track_list[k].size > 0:
+                    total_tracks = max(total_tracks, int(np.max(est.track_list[k])))
+        if total_tracks == -1:
+            # fallback: no track_list found or all empty -> assume zero tracks
+            total_tracks = 0
+        else:
+            total_tracks = total_tracks + 1
+
+    # If est.track_list missing or malformed, try a safe default for extract_tracks call:
+    # extract_tracks expects track_list to be a mapping from time index -> array of track indices.
+    if not hasattr(est, 'track_list'):
+        raise AttributeError("est.track_list is required by write_results_jsonl but was not found.")
+
+    # Build the dense track tensor Y_track with lifetimes using your extract_tracks helper
+    Y_track, l_birth, l_death = extract_tracks(est.X, est.track_list, int(total_tracks))
+
+    # Number of time steps (K)
+    K = Y_track.shape[1]
+
+    # Open file and write JSONL lines
+    with open(filename, 'w') as fh:
+        for k in range(K):
+            t_seconds = k * float(getattr(model, 'T', 1.0))
+            # format timestamp as string with 16 fractional digits
+            timestamp_str = f"{t_seconds:.16f}"
+
+            objects_strs = []
+            for obj_id in range(int(total_tracks)):
+                # extract x,y,z from state vector
+                pos = Y_track[[0, 2, 4], k, obj_id]
+                # skip tracks that are not present at this time (all NaN)
+                if np.all(np.isnan(pos)):
+                    continue
+
+                # format numeric components with 16 fractional digits (produce JSON numbers)
+                x_s = f"{float(pos[0]):.16f}"
+                y_s = f"{float(pos[1]):.16f}"
+                z_s = f"{float(pos[2]):.16f}"
+
+                obj_str = f'{{"object_id":{obj_id},"position":[{x_s},{y_s},{z_s}]}}'
+                objects_strs.append(obj_str)
+
+            objects_joined = ",".join(objects_strs)
+            line = f'{{"timestamp":"{timestamp_str}","objects":[{objects_joined}]}}'
+            fh.write(line + "\n")
+
+    return filename

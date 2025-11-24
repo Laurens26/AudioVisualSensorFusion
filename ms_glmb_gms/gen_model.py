@@ -30,15 +30,15 @@ class model:
         #       [  0   1   0 ]
         #       [  0   0  1/2]
         #       [  0   0   1 ]
-        self.sigma_v = 0.25    # process noise standard deviation of the system velocity
+        self.sigma_v = 0.1    # process noise standard deviation of the system velocity
         self.Q = self.sigma_v ** 2 * np.dot(self.B, self.B.T)  # process noise covariance
 
         # survival/death parameters
-        self.P_S = .99
+        self.P_S = .99 # Laurens: Do NOT reduce, otherwise tracks will breaks into segments
         self.Q_S = 1 - self.P_S
 
         # birth parameters (LMB birth model, single component only)
-        self.T_birth = 4  # no. of LMB birth terms
+        self.T_birth = 1  # no. of LMB birth terms
         self.L_birth = np.zeros((self.T_birth, 1))  # no of Gaussians in each LMB birth term
         self.r_birth = np.zeros((self.T_birth, 1))  # prob of birth for each LMB birth term
         self.w_birth = np.zeros((self.T_birth, 1))  # weights of GM for each LMB birth term
@@ -46,33 +46,41 @@ class model:
         self.B_birth = np.zeros((self.T_birth, self.x_dim, self.x_dim))  # std of GM for each LMB birth term
         self.P_birth = np.zeros((self.T_birth, self.x_dim, self.x_dim))  # cov of GM for each LMB birth term
 
+        # Laurens: Do use only one birth term (gaussian: mean is center of measurement area, std dev is range from center to measurement area borders )
         self.L_birth[0] = 1  # no of Gaussians in birth term 1
-        self.r_birth[0] = 0.0005  # prob of birth
+        self.r_birth[0] = 0.001  # prob of birth
         self.w_birth[0] = 1  # weight of Gaussians - must be column_vector
-        self.m_birth[0, :, :] = np.array([[0], [0], [0], [0], [0], [0]])  # mean of Gaussians
-        self.B_birth[0, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
+        self.m_birth[0, :, :] = np.array([[2.33], [0], [2.33], [0], [1.5], [0]])  # mean of Gaussians
+        self.B_birth[0, :, :] = np.diagflat([[2.33], [1], [2.33], [1], [1.5], [1]])  # std of Gaussians
         self.P_birth[0, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
 
-        self.L_birth[1] = 1  # no of Gaussians in birth term 2
-        self.r_birth[1] = 0.0005  # prob of birth
-        self.w_birth[1] = 1  # %weight of Gaussians - must be column_vector
-        self.m_birth[1, :, :] = np.array([[0], [0], [1], [0], [0], [0]])  # mean of Gaussians
-        self.B_birth[1, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
-        self.P_birth[1, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
+        # self.L_birth[0] = 1  # no of Gaussians in birth term 1
+        # self.r_birth[0] = 0.001  # prob of birth
+        # self.w_birth[0] = 1  # weight of Gaussians - must be column_vector
+        # self.m_birth[0, :, :] = np.array([[0], [0], [0], [0], [0], [0]])  # mean of Gaussians
+        # self.B_birth[0, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
+        # self.P_birth[0, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
 
-        self.L_birth[2] = 1  # no of Gaussians in birth term 3
-        self.r_birth[2] = 0.0005  # prob of birth
-        self.w_birth[2] = 1  # weight of Gaussians - must be column_vector
-        self.m_birth[2, :, :] = np.array([[1], [0], [0], [0], [0], [0]])  # mean of Gaussians
-        self.B_birth[2, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
-        self.P_birth[2, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
+        # self.L_birth[1] = 1  # no of Gaussians in birth term 2
+        # self.r_birth[1] = 0.001  # prob of birth
+        # self.w_birth[1] = 1  # %weight of Gaussians - must be column_vector
+        # self.m_birth[1, :, :] = np.array([[0], [0], [1], [0], [0], [0]])  # mean of Gaussians
+        # self.B_birth[1, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
+        # self.P_birth[1, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
 
-        self.L_birth[3] = 1  # no of Gaussians in birth term 4
-        self.r_birth[3] = 0.0005  # prob of birth
-        self.w_birth[3] = 1  # weight of Gaussians - must be column_vector
-        self.m_birth[3, :, :] = [[1], [0], [1], [0], [0], [0]]  # mean of Gaussians
-        self.B_birth[3, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
-        self.P_birth[3, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
+        # self.L_birth[2] = 1  # no of Gaussians in birth term 3
+        # self.r_birth[2] = 0.001  # prob of birth
+        # self.w_birth[2] = 1  # weight of Gaussians - must be column_vector
+        # self.m_birth[2, :, :] = np.array([[1], [0], [0], [0], [0], [0]])  # mean of Gaussians
+        # self.B_birth[2, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
+        # self.P_birth[2, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
+
+        # self.L_birth[3] = 1  # no of Gaussians in birth term 4
+        # self.r_birth[3] = 0.001  # prob of birth
+        # self.w_birth[3] = 1  # weight of Gaussians - must be column_vector
+        # self.m_birth[3, :, :] = [[1], [0], [1], [0], [0], [0]]  # mean of Gaussians
+        # self.B_birth[3, :, :] = np.diagflat([[1], [1], [1], [1], [1], [1]])  # std of Gaussians
+        # self.P_birth[3, :, :] = self.B_birth[0][:, :] * self.B_birth[0][:, :].T  # cov of Gaussians
 
         # multi-sensor observation parameters
         n_dim = 3  # noise_dim e.g. for 3D sensors [x, y, z]
@@ -87,28 +95,66 @@ class model:
         self.range_c = np.zeros((self.N_sensors, 3, 2))  # uniform clutter region for each sensor: represents the min & max region in which clutter can appear for e.g. 3D [x, y, z]
         self.pdf_c = np.zeros((self.N_sensors, 1))  # uniform clutter density for each sensor. uniform PDF is used to model the likelihood of a clutter point appearing at any given position within the clutter region.
         
-        # observation parameters of sensor 1
+        # # observation parameters of sensor 0 (VIDEO SENSOR)
         self.z_dim[0] = 3   # dimension of sensor measurements e.g. 3D [x, y, z]
         self.H[0] = np.array([[1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0]]) # 1st row extracts x, 2nd row extracts y, 3rd row extracts z from state vector x: [x, vx, y, vy, z, vz] 
                                                                                            # by computing the first part of vector of meaured noisy signals: "z = Hx" + v
-        self.D[0] = np.diag([0.1, 0.1, 0.1])                                           # observation noise std deviation. Diagonal matrix as x, y, z have independend noise std deviation 
+        self.D[0] = np.diag([0.2, 0.2, 0.01])                                           # observation noise std deviation. Diagonal matrix as x, y, z have independend noise std deviation 
         self.R[0] = self.D[0] * self.D[0].T                                         # observation noise covariance: R = DD^T. R describes the statistical properties of the noise
-        self.P_D[0] = .5                                                           # probability of detection = 0.95 
+        self.P_D[0] = 0.51                                                           # probability of detection = 0.95 
         self.Q_D[0] = 1 - self.P_D[0]                                               # probability of missed = 0.05 
-        self.lambda_c[0] = 1                                                       # 10 clutter points per scan
-        self.range_c[0] = np.array([[-20, 20], [-20, 20], [-20, 20]])   # uniform clutter region for each dimension x, y, z is [-1000, 1000] 
+        self.lambda_c[0] = 0.01                                                     # 10 clutter points per scan Means "expected number of false detections per frame"
+        # self.range_c[0] = np.array([[-20, 20], [-20, 20], [-20, 20]])
+        self.range_c[0] = np.array([[0, 4.66], [0, 4.66], [0, 0.01]])   # uniform clutter region for each dimension x, y, z PAVKA Lab
+        # self.range_c[0] = np.array([[0, 10], [0, 4.66], [0, 0.01]])   # uniform clutter region for each dimension x, y, z SYNTHETIC 
         self.pdf_c[0] = 1 / np.prod(self.range_c[0][:, 1] - self.range_c[0][:, 0])  # calculates the uniform clutter density based on the volume of the clutter region e.g. 1 / 8,000,000,000
 
-        # # observation parameters of sensor 2
+
+        # 2DDDDDDDDDDDD
+        # observation parameters of sensor 0 (VIDEO SENSOR)
+        # self.z_dim[0] = 2   # dimension of sensor measurements e.g. 3D [x, y, z]
+        # self.H[0] = np.array([[1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0]]) # 1st row extracts x, 2nd row extracts y, 3rd row extracts z from state vector x: [x, vx, y, vy, z, vz] 
+        #                                                                                    # by computing the first part of vector of meaured noisy signals: "z = Hx" + v
+        # self.D[0] = np.diag([0.2, 0.2])                                           # observation noise std deviation. Diagonal matrix as x, y, z have independend noise std deviation 
+        # self.R[0] = self.D[0] * self.D[0].T                                         # observation noise covariance: R = DD^T. R describes the statistical properties of the noise
+        # self.P_D[0] = 0.51                                                           # probability of detection = 0.95 
+        # self.Q_D[0] = 1 - self.P_D[0]                                               # probability of missed = 0.05 
+        # self.lambda_c[0] = 0.01                                                     # 10 clutter points per scan Means "expected number of false detections per frame"
+        # # self.range_c[0] = np.array([[-20, 20], [-20, 20], [-20, 20]])
+        # self.range_c[0] = np.array([[0, 4.66], [0, 4.66]])   # uniform clutter region for each dimension x, y, z PAVKA Lab
+        # # self.range_c[0] = np.array([[0, 10], [0, 4.66], [0, 0.01]])   # uniform clutter region for each dimension x, y, z SYNTHETIC 
+        # self.pdf_c[0] = 1 / np.prod(self.range_c[0][:, 1] - self.range_c[0][:, 0])  # calculates the uniform clutter density based on the volume of the clutter region e.g. 1 / 8,000,000,000
+
+
+        # # observation parameters of sensor 0 (AUDIO SENSOR)
+        # self.z_dim[0] = 3
+        # self.H[0] = np.array([[1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0]])
+        # self.D[0] = np.diag([0.25, 0.25, 0.0])
+        # self.R[0] = self.D[0] * self.D[0].T
+        # self.P_D[0] = 0.5
+        # self.Q_D[0] = 1 - self.P_D[0]
+        # self.lambda_c[0] = 10
+        # self.range_c[0] = np.array([[-20, 20], [-20, 20], [-20, 20]])
+        # self.pdf_c[0] = 1 / np.prod(self.range_c[0][:, 1] - self.range_c[0][:, 0])
+
+        # # observation parameters of sensor 1 (AUDIO SENSOR)
         # self.z_dim[1] = 3
         # self.H[1] = np.array([[1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0]])
-        # self.D[1] = np.diag([0.1, 0.1, 0.1])
+        # self.D[1] = np.diag([0.25, 0.25, 0.0])
         # self.R[1] = self.D[1] * self.D[1].T
-        # self.P_D[1] = .95
+        # self.P_D[1] = 0.5
         # self.Q_D[1] = 1 - self.P_D[1]
         # self.lambda_c[1] = 10
         # self.range_c[1] = np.array([[-20, 20], [-20, 20], [-20, 20]])
         # self.pdf_c[1] = 1 / np.prod(self.range_c[1][:, 1] - self.range_c[1][:, 0])
+
+
+
+
+
+
+
+
 
         # # # observation parameters of sensor 3
         # self.z_dim[2] = 3
