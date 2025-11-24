@@ -16,28 +16,13 @@ Python package for an efficient algorithm for truncating the GLMB filtering dens
 [2] Vo, B. N., Vo, B. T., & Beard, M. (2019). Multi-sensor multi-object tracking with the generalized labeled multi-Bernoulli filter. IEEE Transactions on Signal Processing, 67(23), 5952-5967.  
 [3] Trezza, A., Bucci Jr, D. J., & Varshney, P. K. (2021). Multi-sensor Joint Adaptive Birth Sampler for Labeled Random Finite Set Tracking. arXiv preprint arXiv:2109.04355.  
 ## Requirements
-General Requirements:
-- Python 3.7 / 3.11.3
+
+- Python 3.7
 - C++ compiler (eg. Windows: Visual Studio 15 2017, Ubuntu: g++)
-
-If Python 3.7 download release and copy/move content to /cpp_gibbs/pybind11/:
-- https://github.com/pybind/pybind11/releases/tag/v2.10.4
-
-If Python 3.11 download release and copy/move content to /cpp_gibbs/pybind11/:
-- https://github.com/pybind/pybind11/releases/tag/v3.0.0
+- `git clone https://github.com/pybind/pybind11.git `
 ## Install
 
 `python setup.py build develop`
-
-Ouput will be a a compiled Python extension module file:
-- \cpp_gibbs\lrfscpp.cp311-win_amd64.pyd
-
-It is used in python e.g.:
-- `import lrfscpp`
-
- or
-- `from lrfscpp import gibbs_multisensor_approx_cheap, AdaptiveBirth`
-
 
 Install Eigen for Windows (after the following steps, add include directory `C:\eigen-3.4.0` for example.)
 1) Download Eigen 3.4.0 (NOT lower than this version) from it official website https://eigen.tuxfamily.org/ or [ZIP file here](https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip).
