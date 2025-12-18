@@ -33,7 +33,7 @@ class filter:
         # PG 0.99 	    -> gamma 11.34  -> common choice
         # PG 0.9999999 	-> gamma 35.41 	-> very, very loose 
         # self.P_G = 0.9999999  # gate size in percentage
-        self.P_G = 0.99  # gate size in percentage LAURENS
+        self.P_G = 0.5  # gate size in percentage LAURENS
         self.gamma = chi2.ppf(self.P_G, model.z_dim)  # inv chi^2 dn gamma value
         self.gate_flag = 1  # gating on or off 1/0
 
@@ -462,7 +462,7 @@ class GLMB:  # delta GLMB
         return X, N, L
 
     def display_diaginfo(self, k, est, filter, H_predict, H_posterior, H_prune, H_cap):
-        if filter.run_flag is not 'silence':
+        if filter.run_flag != 'silence':
             print(' time= ', str(k),
                   ' #eap cdn=', "{:10.4f}".format(np.arange(0, (len(self.glmb_update_cdn))) @ self.glmb_update_cdn),
                   ' #var cdn=', "{:10.4f}".format(np.arange(0, (len(self.glmb_update_cdn)))**2 @ self.glmb_update_cdn -
