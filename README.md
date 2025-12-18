@@ -1,3 +1,122 @@
+# Audio-Visual Sensor Fusion
+
+This repository implements the **Audio-Visual Sensor Fusion Software Module**, responsible for **multi-object tracking (MOT)** of moving speakers by fusing detections from audio and video modalities.  
+It is part of a modular audio-visual software architecture designed for reproducible indoor experiments with synthetic data.
+
+## Audio-Visual Sensor Fusion Architecture
+
+![Scene Diagram](Images/AVSensorFusionArchitecture.svg)
+
+## Overview
+
+The Sensor Fusion module follows the **Tracking-by-Detection (TBD)** paradigm and uses the **MS-GLMB (Multi-Scan Generalized Labeled Multi-Bernoulli)** algorithm to associate detections across time while handling:
+
+- Measurement uncertainty
+- Missed detections
+- False alarms
+- Object birth and death
+
+The fusion of audio and video detections improves robustness compared to unimodal tracking, particularly in scenarios with occlusions or reverberant acoustic conditions.
+
+## Features
+
+- Multi-object tracking of moving speakers in 3D space
+- Fusion of audio and video detections in a unified Bayesian framework
+- Online processing with low computational complexity
+- Robust handling of data association ambiguities
+- Output compatible with TrackEval for quantitative evaluation
+
+## Repository Structure
+
+```
+audiovisualsensorfusion/
+├── ms_glmb_gms/   # directory (MS-GLMB)
+│   ├── audio_visual_sensor_fusion.py   # Main fusion and tracking script
+│   ├── gen_model.py                    # Motion model (linear kalman filter constant velocity)
+│   ├── gen_truth.py                    # Load/Generate groundtruth tracks
+│   ├── gen_meas.py                     # Load/Generate sensor measurements
+│   ├── run_filter.py                   # MS-GLMB filter (predict, update)
+│   ├── plot_results.py                 # 2D/3D track visualizations
+│   ├── utils.py                        # Helper functions and data I/O
+└── README.md
+```
+
+## Generated Scenario Folder Structure
+
+Each simulation session follows a standardized directory structure shared across all software modules:
+
+```
+📁 experiment_001/
+├── config.json
+├── groundtruth_sources.jsonl
+├── audio/
+│   └── wav/
+│       └── multichannel_audio_<timestamp>.wav
+├── video/
+│   ├── rgb/
+│   │   └── RGB_frame_<timestamp>.png
+│   └── depth/
+│       └── Depth_frame_<timestamp>.png
+├── localization/
+│   ├── audio_localizations.jsonl
+│   └── video_localizations.jsonl
+└── tracking/
+    ├── audio_tracking.jsonl
+    ├── video_tracking.jsonl
+    └── audio_video_tracking.jsonl
+```
+
+## Inputs and Outputs
+
+### Inputs
+- `audio_localizations.jsonl`  
+  3D sound source detections produced by the Audio Detector module.
+- `video_localizations.jsonl`  
+  3D person detections produced by the Video Detector module.
+- `groundtruth_sources.jsonl` *(optional)*  
+  Ground-truth trajectories for evaluation.
+
+### Output
+- `audio_video_tracking_<Scenario>.jsonl`  
+  Time-dependent 3D tracks of detected people/speakers, produced by the MS-GLMB tracker.
+
+## Methodology
+
+### Multi-Object Tracking with MS-GLMB
+
+The MS-GLMB algorithm is used to track multiple speakers over time. It models the multi-speaker state as a **labeled Random Finite Set (RFS)**, enabling principled handling of:
+
+- Track continuity
+- Label consistency
+- Data association across modalities
+
+A constant-velocity motion model is employed, and Gaussian likelihoods are assumed for both audio and video measurements.
+
+
+## Usage
+
+1. Ensure audio and video localization files are available:
+   - `audio_localizations.jsonl`
+   - `video_localizations.jsonl`
+2. Run the fusion script:
+
+```bash
+python audio_visual_sensor_fusion.py
+```
+
+3. The resulting people/speaker tracks are written to `audio_video_tracking_<Scenario>.jsonl`.
+
+## Contact
+
+Created by: **Laurens Sillekens**  
+Part of a modular audio-visual sensor fusion framework for reproducible indoor experiments.
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
 PYTHON LABELED RFS 
 ========================
 This repository contains Python implementation of `jointglmb` GLMB [1] and `jointlmb` LMB [3]. The implementation are ported from `rfs_tracking_toolbox\jointlmb\gms` and `rfs_tracking_toolbox\jointglmb\gms` implemented in Matlab (it was done by Prof. Vo's research group). 
