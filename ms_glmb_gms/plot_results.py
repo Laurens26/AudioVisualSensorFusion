@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib.colors import LinearSegmentedColormap
 
-def plot_results(model, truth, meas, est):
+def plot_results(model, truth, meas, est, title, filename):
     X_track, k_birth, k_death = extract_tracks(truth.X, truth.track_list, truth.total_tracks)
 
     labelcount = countestlabels(meas, est)
@@ -21,34 +22,112 @@ def plot_results(model, truth, meas, est):
     #                   model.range_c[2, 0, 0], model.range_c[2, 0, 1]])
     
     # Generate a colormap for different tracks
-    colors = cm.get_cmap('tab10', truth.total_tracks)
-    plt.figure(figsize=(9, 6))
-    ax = plt.axes(projection='3d')
-    ax.view_init(elev=90, azim=-90) # top down viewing angle
+    colors = cm.get_cmap('tab10', max(truth.total_tracks, est.total_tracks))
+    plt.figure(figsize=(10, 6), dpi=200)
+    ax = plt.axes(projection='3d', computed_zorder=False)
 
-    # Lists to store legend elements
-    legend_elements = []
+    # Hide z-axis completely
+    ax.set_zticks([])                 # no ticks
+    ax.set_zticklabels([])            # no tick labels
+    ax.zaxis.line.set_visible(False)  # hide the z-axis line
+    ax.zaxis.pane.set_visible(False)  # hide the background pane
+
+    ax.view_init(elev=90, azim=-90) # top down viewing angle
+    legend_elements = []     # Lists to store legend elements
+    
+    # Define RGB values for middle grey and dark grey
+    dark_grey = (0.05, 0.05, 0.05)
+    light_grey = (0.85, 0.85, 0.85)
+    
+
+    # Create a custom colormap from middle grey to dark grey using RGB values
+    cmap_grey_to_dark = LinearSegmentedColormap.from_list(
+        'grey_to_dark', 
+        [(0, dark_grey), (1, light_grey)]  # Mapping 0 to middle grey and 1 to dark grey
+    )
+
+    # Plot measurements in 3D
+    for s in range(model.N_sensors):
+        for k in range(0, meas.K):
+            if meas.Z[(k, s)].size == 0:
+                continue
+            # # Plot measurements as points (scatter plot)
+            # ax.scatter(meas.Z[(k, s)][0, :], meas.Z[(k, s)][1, :], meas.Z[(k, s)][2, :], marker='x', s=50,
+            #         color=0.7 * np.ones((1, 3)), label=f'Measurements for Track {k}')
+                    # Normalize the timestamp k (between 0 and K-1) to the range [0, 1]
+            norm_k = k / (meas.K - 1)  # Normalized value between 0 (dark grey) and 1 (light grey)
+            
+            # Use a colormap (e.g., gray) to map the normalized timestamp to a color
+            color = cmap_grey_to_dark(norm_k)  # cm.gray generates a grey color based on the normalized value
+
+            if s == 0:
+                marker = 'x' # video detections
+                # marker = '+'  # audio detections
+                size = 30
+
+            elif s == 1:
+                marker = '+'
+                size = 40
+        
+            # Plot measurements as points (scatter plot)
+            ax.scatter(
+                meas.Z[(k, s)][0, :], 
+                meas.Z[(k, s)][1, :], 
+                meas.Z[(k, s)][2, :], 
+                marker=marker, 
+                s=size, 
+                color=color, 
+                label=f'Measurements for Track {k}' if k == 0 else "",  # Avoid repeated labels
+                alpha=1.0,
+                zorder=1
+            )
+
+    
+
 
     for i in range(truth.total_tracks):
         Pt = X_track[:, np.arange(k_birth[i], k_death[i], 1), i]
         Pt = Pt[[0, 2, 4], :]
         
         # Plot track
-        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color=colors(i), label=f'Track ID {i+1}', alpha=0.5)
+        # ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color=colors(i), label=f'Track ID {i+1}', alpha=0.75)
+        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color='black', label=f'Track ID {i+1}', alpha=1.0, zorder=7)
         
         # Plot birth marker
-        ax.scatter(Pt[0, 0], Pt[1, 0], Pt[2, 0], color=colors(i), marker='o', s=60, alpha=0.5)
+        # ax.scatter(Pt[0, 0], Pt[1, 0], Pt[2, 0], color=colors(i), marker='o', s=60, alpha=0.75)
+        ax.scatter(Pt[0, 0], Pt[1, 0], Pt[2, 0], color='black', marker='o', s=60, alpha=1.0, zorder=8)
         
         # Plot death marker
-        ax.scatter(Pt[0, -1], Pt[1, -1], Pt[2, -1], color=colors(i), marker='^', s=60, alpha=0.5)
+        # ax.scatter(Pt[0, -1], Pt[1, -1], Pt[2, -1], color=colors(i), marker='^', s=60, alpha=0.75)
+        ax.scatter(Pt[0, -1], Pt[1, -1], Pt[2, -1], color='black', marker='^', s=60, alpha=1.0, zorder=9)
 
     # Add birth and death markers once to the legend
-    legend_elements.append(plt.Line2D([0], [0], marker='o', color='black', markersize=8, linestyle='None', label='True Birth', alpha=0.5))
-    legend_elements.append(plt.Line2D([0], [0], marker='^', color='black', markersize=8, linestyle='None', label='True Death', alpha=0.5))
+    legend_elements.append(plt.Line2D([0], [0], marker='o', color='black', markersize=8, linestyle='None', label='Object Birth', alpha=1.0))
+    legend_elements.append(plt.Line2D([0], [0], marker='^', color='black', markersize=8, linestyle='None', label='Object Death', alpha=1.0))
 
     # Add track IDs to the legend
-    for i in range(truth.total_tracks):
-        legend_elements.append(plt.Line2D([0], [0], color=colors(i), lw=2, label=f'True Track ID {i+1}', alpha=0.5))
+    legend_elements.append(plt.Line2D([0], [0], color='black', lw=2, label=f'True Tracks', alpha=1.0))
+    # for i in range(truth.total_tracks):
+    #     # legend_elements.append(plt.Line2D([0], [0], color=colors(i), lw=2, label=f'True Track ID {i+1}', alpha=0.5))
+    #     legend_elements.append(plt.Line2D([0], [0], color='black', lw=2, label=f'True Track ID {i+1}', alpha=0.75))
+
+    # Add measurements to the legend once for each sensor
+    for s in range(model.N_sensors):
+        if s == 0:
+            # legend_elements.append(plt.Line2D([0], [0], marker='+', color='black', markersize=8, linestyle='None', label='Audio Detections'))
+            legend_elements.append(plt.Line2D([0], [0], marker='x', color='black', markersize=8, linestyle='None', label='Video Detections'))
+        elif s == 1:
+            legend_elements.append(plt.Line2D([0], [0], marker='+', color='black', markersize=8, linestyle='None', label='Audio Detections'))
+
+    # Add a colorbar to represent the time-based color coding
+    sm = plt.cm.ScalarMappable(cmap=cmap_grey_to_dark, norm=plt.Normalize(vmin=0, vmax=(meas.K - 1)/10)) # /10 to account for 0.1s timesteps instead of 1
+    sm.set_array([])  # Required for the colorbar to work
+    cbar = plt.colorbar(sm, ax=ax, shrink=0.7, pad=0)
+    cbar.set_label('Time [s]')
+
+    # Add the custom legend for the time-based color coding
+    # legend_elements.append(plt.Line2D([0], [0], color=cm.viridis(0), lw=2, label='Start Time [s]', alpha=0.7))
+    # legend_elements.append(plt.Line2D([0], [0], color=cm.viridis(1), lw=2, label='End Time [s]', alpha=0.7))
 
     # Plot estimated tracks and markers in 3D
     for i in range(est.total_tracks):
@@ -59,7 +138,7 @@ def plot_results(model, truth, meas, est):
         # print(Pt.T)  # Transpose to one row per timestep: [x, y, z]
 
         # Plot track
-        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color=colors(i), label=f'Track ID {i+1}')
+        ax.plot(Pt[0, :], Pt[1, :], Pt[2, :], color=colors(i), label=f'Track ID {i+1}', alpha=1.0, zorder=10)
         
         # Find the first valid (non-NaN) 3D point (birth)
         for j in range(Pt.shape[1]):
@@ -75,24 +154,29 @@ def plot_results(model, truth, meas, est):
 
         # Plot the birth marker at the first valid 3D point
         print(f"birth:{birth_point[0], birth_point[1], birth_point[2]}")
-        ax.scatter(birth_point[0], birth_point[1], birth_point[2], color=colors(i), marker='o', s=60)
+        ax.scatter(birth_point[0], birth_point[1], birth_point[2], color=colors(i), marker='o', s=60, zorder=11)
         
         # Plot the death marker at the last valid 3D point
         print(f"death:{death_point[0], death_point[1], death_point[2]}")
-        ax.scatter(death_point[0], death_point[1], death_point[2], color=colors(i), marker='^', s=60)
+        ax.scatter(death_point[0], death_point[1], death_point[2], color=colors(i), marker='^', s=60, zorder=11)
 
+    # # Add estimated birth and death markers once to the legend
+    # legend_elements.append(plt.Line2D([0], [0], marker='o', color='black', markersize=8, linestyle='None', label='Estimated Birth'))
+    # legend_elements.append(plt.Line2D([0], [0], marker='^', color='black', markersize=8, linestyle='None', label='Estimated Death'))
+
+    print(f"est.total_tracks: {est.total_tracks}")
     # Add estimated track IDs to the legend
     for i in range(est.total_tracks):
+        print(i)
         legend_elements.append(plt.Line2D([0], [0], color=colors(i), lw=2, label=f'Estimated Track ID {i+1}'))
 
-    # Add estimated birth and death markers once to the legend
-    legend_elements.append(plt.Line2D([0], [0], marker='o', color='black', markersize=8, linestyle='None', label='Estimated Birth'))
-    legend_elements.append(plt.Line2D([0], [0], marker='^', color='black', markersize=8, linestyle='None', label='Estimated Death'))
+
 
     # Set axis labels
     ax.set_xlabel('x [m]')
     ax.set_ylabel('y [m]')
     ax.set_zlabel('z [m]')
+    ax.set_zlabel('')                 # hide the axis label
 
     # Set axis limits
     # ax.set_xlim3d(limit[0], limit[1])
@@ -103,33 +187,13 @@ def plot_results(model, truth, meas, est):
     ax.set_ylim3d(0, 5)
     ax.set_zlim3d(0, 3)
 
-    plt.title('MS-GLMB Tracking')
-    ax.legend(handles=legend_elements, loc='upper left', fontsize='small', bbox_to_anchor=(1.05, 1)) # bbox_to_anchor to move legend relative to loc
 
-    # Laurens: Plot measurements in 3D
-    for s in range(model.N_sensors):
-        for k in range(0, meas.K):
-            if meas.Z[(k, s)].size == 0:
-                continue
-            # # Plot measurements as points (scatter plot)
-            # ax.scatter(meas.Z[(k, s)][0, :], meas.Z[(k, s)][1, :], meas.Z[(k, s)][2, :], marker='x', s=50,
-            #         color=0.7 * np.ones((1, 3)), label=f'Measurements for Track {k}')
-                    # Normalize the timestamp k (between 0 and K-1) to the range [0, 1]
-            norm_k = k / (meas.K - 1)  # Normalized value between 0 (dark grey) and 1 (light grey)
-            
-            # Use a colormap (e.g., gray) to map the normalized timestamp to a color
-            color = cm.viridis(norm_k)  # cm.gray generates a grey color based on the normalized value
+    plt.title(f"MS-GLMB Multi-object Tracking Results - {title}")
+    # ax.legend(handles=legend_elements, loc='upper left', fontsize='small', bbox_to_anchor=(0.9, 1.0)) # bbox_to_anchor to move legend relative to loc
+    ax.legend(handles=legend_elements, loc='center left', fontsize='medium', bbox_to_anchor=(-0.4, 0.5)) # bbox_to_anchor to move legend relative to loc
+    plt.savefig(f"{filename}.png")
 
-            # Plot measurements as points (scatter plot)
-            ax.scatter(
-                meas.Z[(k, s)][0, :], 
-                meas.Z[(k, s)][1, :], 
-                meas.Z[(k, s)][2, :], 
-                marker='x', 
-                s=50, 
-                color=color, 
-                label=f'Measurements for Track {k}' if k == 0 else ""  # Avoid repeated labels
-            )
+
 
     # # Plot each axis for each sensor separately
     # for s in range(model.N_sensors):
@@ -202,7 +266,7 @@ def plot_truth_meas(model, truth, meas):
     # plot x measurement
     fig, (axs1, axs2) = plt.subplots(2, figsize=(12, 12))
     for k in range(0, meas.K):
-        if meas.Z[k].size is not 0:
+        if meas.Z[k].size != 0:
             plt_x_meas = axs1.scatter(k * np.ones((meas.Z[k].shape[1], 1)), meas.Z[k][0, :], marker='x',
                      s=50, color=0.7 * np.ones((1, 3)), label='Measurements')
     # plot x track
@@ -218,7 +282,7 @@ def plot_truth_meas(model, truth, meas):
     # plot y measurement
     # plt.subplot(212)
     for k in range(0, meas.K):
-        if meas.Z[k].size is not 0:
+        if meas.Z[k].size != 0:
             plt_y_meas = axs2.scatter(k * np.ones((meas.Z[k].shape[1], 1)), meas.Z[k][1, :], marker='x',
                      s=50, color=0.7 * np.ones((1, 3)), label='Measurements')
     # plot y track
@@ -285,7 +349,7 @@ def extract_tracks(X, track_list, total_tracks):
 
     max_idx = 0;
     for k in range(0, K):
-        if X[k].size is not 0:
+        if X[k].size != 0:
             X_track[:, k, track_list[k]] = X[k]
         else:
             continue
